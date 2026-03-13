@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SNAKE — by WBK</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #0a0c0a;
+  font-family: 'Space Mono', monospace;
+  touch-action: none;
+  image-rendering: pixelated;
+}
+
+/* ── LAYOUT ── */
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%; height: 100%;
+  gap: 0;
+}
+
+/* ── HUD BAR ── */
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 560px;
+  padding: 10px 4px 8px;
+  gap: 8px;
+}
+
+.hud-box {
+  background: #111711;
+  border: 2px solid #1e2e1e;
+  box-shadow: 2px 2px 0 #000;
+  padding: 6px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+}
+.hud-label {
+  font-size: 0.48rem;
+  color: #3a5a3a;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.hud-val {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+  color: #e2e8f0;
+  text-shadow: 2px 2px 0 #000;
+}
+.hud-val.green { color: #48bb78; }
+.hud-val.gold  { color: #f6c90e; }
+
+/* ── CANVAS WRAPPER ── */
+#canvasWrap {
+  position: relative;
+  border: 3px solid #1e2e1e;
+  box-shadow:
+    4px 4px 0 #000,
+    0 0 0 1px #0a0c0a;
+  image-rendering: pixelated;
+  line-height: 0;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* ── OVERLAY SCREENS ── */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 10, 0.92);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  z-index: 10;
+}
+.overlay.hidden { display: none; }
+
+.px-title {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: 3.2rem;
+  letter-spacing: -0.05em;
+  color: #e2e8f0;
+  text-shadow: 4px 4px 0 #000, 3px 3px 0 #000;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.px-title .g { color: #48bb78; }
+
+.px-sub {
+  font-size: 0.52rem;
+  color: #3a5a3a;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+/* Pixel art scoreboard */
+.hs-board {
+  width: 220px;
+  border: 2px solid #1e2e1e;
+  box-shadow: 3px 3px 0 #000;
+  margin-bottom: 16px;
+  background: #0d140d;
+}
+.hs-head {
+  background: #1e2e1e;
+  font-size: 0.5rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #3a5a3a;
+  padding: 5px 10px;
+  text-align: center;
+  border-bottom: 2px solid #0a0c0a;
+}
+.hs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 0.62rem;
+  color: #4a6a4a;
+  border-bottom: 1px solid #111711;
+}
+.hs-row:last-child { border-bottom: none; }
+.hs-row.r1 { color: #f6c90e; background: rgba(246,201,14,0.05); }
+.hs-row.r2 { color: #a0aec0; }
+.hs-row.r3 { color: #c08060; }
+.hs-rank { font-weight: 700; width: 20px; }
+.hs-medal { width: 18px; text-align: center; font-size: 0.7rem; }
+.hs-score { font-weight: 700; letter-spacing: 0.06em; }
+
+/* Pixel buttons */
+.px-btn {
+  background: #48bb78;
+  border: none;
+  border-bottom: 4px solid #276749;
+  border-right: 4px solid #276749;
+  padding: 11px 32px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0a0c0a;
+  cursor: pointer;
+  pointer-events: all;
+  margin-bottom: 8px;
+  transition: background 0.08s;
+  display: block;
+}
+.px-btn:hover { background: #68d391; }
+.px-btn:active { transform: translate(4px,4px); border-bottom-width:0; border-right-width:0; }
+
+.px-btn.sec {
+  background: transparent;
+  border: 2px solid #1e2e1e;
+  border-bottom: 4px solid #0a0c0a;
+  border-right: 4px solid #0a0c0a;
+  color: #3a5a3a;
+  font-size: 0.58rem;
+}
+.px-btn.sec:hover { color: #4a7a4a; border-color: #2e4e2e; }
+
+.new-best {
+  font-size: 0.52rem;
+  color: #f6c90e;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  text-shadow: 1px 1px 0 #000;
+  display: none;
+}
+.new-best.show { display: block; }
+
+/* ── TOUCH D-PAD ── */
+#dpad {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: none;
+  width: 150px;
+  height: 150px;
+}
+#dpad.show { display: block; }
+
+.dp-btn {
+  position: absolute;
+  width: 46px; height: 46px;
+  background: rgba(72,187,120,0.1);
+  border: 2px solid rgba(72,187,120,0.25);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(72,187,120,0.5);
+  font-size: 1rem;
+  cursor: pointer;
+  pointer-events: all;
+  user-select: none; -webkit-user-select: none;
+}
+.dp-btn.pressed { background:rgba(72,187,120,0.22); color:rgba(72,187,120,1); border-color:rgba(72,187,120,0.6); }
+#dpU { top:0;    left:52px; }
+#dpD { bottom:0; left:52px; }
+#dpL { left:0;   top:52px; }
+#dpR { right:0;  top:52px; }
+
+/* ── BACK BUTTON ── */
+#backBtn {
+  position: fixed;
+  top: 12px; left: 12px;
+  z-index: 30;
+  background: rgba(10,12,10,0.9);
+  border: 2px solid #1e2e1e;
+  box-shadow: 2px 2px 0 #000;
+  padding: 7px 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  color: #3a5a3a;
+  cursor: pointer;
+  text-decoration: none;
+  display: flex; align-items: center; gap: 5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+#backBtn:hover { color: #68d391; border-color: #2e4e2e; }
+
+/* Speed indicator */
+#speedTag {
+  position: fixed;
+  top: 12px; right: 12px;
+  z-index: 30;
+  background: rgba(10,12,10,0.9);
+  border: 2px solid #1e2e1e;
+  box-shadow: 2px 2px 0 #000;
+  padding: 6px 10px;
+  font-size: 0.5rem;
+  color: #3a5a3a;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: none;
+}
+#speedTag.show { display: block; }
+#speedTag span { color: #48bb78; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<a id="backBtn" href="index.html">← back</a>
+<div id="speedTag">speed <span id="speedVal">1</span></div>
+
+<div id="app">
+  <div id="hud">
+    <div class="hud-box">
+      <div class="hud-label">score</div>
+      <div class="hud-val green" id="hScore">0</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">length</div>
+      <div class="hud-val" id="hLen">1</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">best</div>
+      <div class="hud-val gold" id="hBest">0</div>
+    </div>
+  </div>
+
+  <div id="canvasWrap">
+    <canvas id="c"></canvas>
+
+    <!-- START SCREEN -->
+    <div class="overlay" id="scrStart">
+      <div class="px-title">SN<span class="g">AK</span>E</div>
+      <div class="px-sub">pixel · eat · survive</div>
+      <div class="hs-board">
+        <div class="hs-head">— high scores —</div>
+        <div id="hsStart"></div>
+      </div>
+      <button class="px-btn" id="btnStart">▶ play</button>
+      <button class="px-btn sec" onclick="location.href='index.html'">← profile</button>
+    </div>
+
+    <!-- GAME OVER SCREEN -->
+    <div class="overlay hidden" id="scrOver">
+      <div class="px-title"><span class="g">dead</span>.</div>
+      <div class="px-sub" id="goSub">better luck next time</div>
+      <div class="new-best" id="newBest">★ new high score ★</div>
+      <div class="hs-board">
+        <div class="hs-head">— high scores —</div>
+        <div id="hsOver"></div>
+      </div>
+      <button class="px-btn" id="btnRestart">▶ again</button>
+      <button class="px-btn sec" onclick="location.href='index.html'">← profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- D-PAD -->
+<div id="dpad">
+  <div class="dp-btn" id="dpU">▲</div>
+  <div class="dp-btn" id="dpD">▼</div>
+  <div class="dp-btn" id="dpL">◀</div>
+  <div class="dp-btn" id="dpR">▶</div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+const GRID       = 20;    // cells per side
+const CELL       = 24;    // px per cell (will be scaled)
+const BASE_SPEED = 160;   // ms per tick
+const MIN_SPEED  = 60;    // fastest possible
+const SPEED_STEP = 8;     // ms faster per food eaten
+const SCORE_PER_FOOD = 10;
+
+// ══════════════════════════════════════════
+//  CANVAS SETUP — scale to fit screen
+// ══════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+let SCALE = 1;
+
+function setupCanvas() {
+  const maxW = Math.min(window.innerWidth - 16, 560);
+  const maxH = window.innerHeight - 130;
+  const maxCell = Math.floor(Math.min(maxW, maxH) / GRID);
+  SCALE = Math.max(1, maxCell);
+
+  const size = GRID * SCALE;
+  canvas.width  = size;
+  canvas.height = size;
+  canvas.style.width  = size + 'px';
+  canvas.style.height = size + 'px';
+}
+setupCanvas();
+window.addEventListener('resize', () => { setupCanvas(); if(!running) drawStatic(); });
+
+// ══════════════════════════════════════════
+//  PIXEL ART SPRITES  (drawn at SCALE px/cell)
+// ══════════════════════════════════════════
+
+// Snake head — direction variants all stored as up, rotated via canvas
+// 5×5 pixel art
+const HEAD_SPR = [
+  [0,1,1,1,0],
+  [1,1,1,1,1],
+  [1,2,1,2,1],
+  [1,1,1,1,1],
+  [1,1,3,1,1],
+];
+const HEAD_PAL = { 1:'#48bb78', 2:'#0a0c0a', 3:'#276749' };
+
+// Snake body
+const BODY_SPR = [
+  [0,1,1,1,0],
+  [1,1,1,1,1],
+  [1,1,1,1,1],
+  [1,1,1,1,1],
+  [0,1,1,1,0],
+];
+const BODY_PAL = { 1:'#38a169' };
+
+// Snake body (alternating)
+const BODY_SPR2 = [
+  [0,1,1,1,0],
+  [1,1,2,1,1],
+  [1,2,1,2,1],
+  [1,1,2,1,1],
+  [0,1,1,1,0],
+];
+const BODY_PAL2 = { 1:'#38a169', 2:'#2f855a' };
+
+// Snake tail
+const TAIL_SPR = [
+  [0,0,1,0,0],
+  [0,1,1,1,0],
+  [0,1,1,1,0],
+  [0,1,1,1,0],
+  [0,0,1,0,0],
+];
+const TAIL_PAL = { 1:'#2f855a' };
+
+// Food — apple pixel art (5×5)
+const FOOD_SPR = [
+  [0,0,2,0,0],
+  [0,1,1,1,0],
+  [1,1,1,1,1],
+  [1,1,1,1,1],
+  [0,1,1,1,0],
+];
+const FOOD_PAL = { 1:'#f56565', 2:'#48bb78' };
+
+// Bonus food — star (5×5)
+const BONUS_SPR = [
+  [0,1,0,1,0],
+  [0,1,1,1,0],
+  [1,1,1,1,1],
+  [0,1,1,1,0],
+  [1,0,1,0,1],
+];
+const BONUS_PAL = { 1:'#f6c90e' };
+
+function drawSpr(spr, pal, gx, gy, angleRad=0) {
+  const px = gx * SCALE;
+  const py = gy * SCALE;
+  const sprW = spr[0].length;
+  const sprH = spr.length;
+  const sc   = SCALE / sprW; // scale so sprite fills cell
+
+  ctx.save();
+  ctx.translate(px + SCALE/2, py + SCALE/2);
+  if(angleRad) ctx.rotate(angleRad);
+  spr.forEach((row, ry) => {
+    row.forEach((ci, rx) => {
+      if(!ci) return;
+      ctx.fillStyle = pal[ci];
+      ctx.fillRect(
+        Math.round((rx - sprW/2) * sc),
+        Math.round((ry - sprH/2) * sc),
+        Math.ceil(sc), Math.ceil(sc)
+      );
+    });
+  });
+  ctx.restore();
+}
+
+function dirToAngle(dir) {
+  return { U:0, R:Math.PI/2, D:Math.PI, L:-Math.PI/2 }[dir];
+}
+
+// ══════════════════════════════════════════
+//  GRID DRAW
+// ══════════════════════════════════════════
+function drawGrid() {
+  // Background
+  ctx.fillStyle = '#0d140d';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle checker pattern
+  for(let y=0; y<GRID; y++) {
+    for(let x=0; x<GRID; x++) {
+      if((x+y)%2===0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.012)';
+        ctx.fillRect(x*SCALE, y*SCALE, SCALE, SCALE);
+      }
+    }
+  }
+
+  // Grid lines — very subtle
+  ctx.strokeStyle = 'rgba(30,46,30,0.5)';
+  ctx.lineWidth = 1;
+  for(let i=0; i<=GRID; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i*SCALE, 0); ctx.lineTo(i*SCALE, canvas.height);
+    ctx.moveTo(0, i*SCALE); ctx.lineTo(canvas.width, i*SCALE);
+    ctx.stroke();
+  }
+}
+
+// ══════════════════════════════════════════
+//  PARTICLES
+// ══════════════════════════════════════════
+const particles = [];
+
+function spawnParticles(gx, gy) {
+  for(let i=0; i<8; i++) {
+    const angle = (Math.PI*2/8)*i + Math.random()*0.4;
+    const speed = 1.5 + Math.random()*2.5;
+    particles.push({
+      x: gx*SCALE + SCALE/2,
+      y: gy*SCALE + SCALE/2,
+      vx: Math.cos(angle)*speed,
+      vy: Math.sin(angle)*speed,
+      life: 1, size: 3+Math.random()*3,
+      color: Math.random()>0.5 ? '#f6c90e' : '#f56565',
+    });
+  }
+}
+
+function updateParticles() {
+  for(let i=particles.length-1; i>=0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.12;
+    p.life -= 0.055;
+    if(p.life<=0) { particles.splice(i,1); continue; }
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(Math.round(p.x - p.size/2), Math.round(p.y - p.size/2), Math.round(p.size), Math.round(p.size));
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ══════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════
+let snake, dir, nextDir, food, bonusFood, bonusTimer;
+let score, speed, running, gameLoop;
+let frame = 0; // for animation
+
+function randCell(exclude=[]) {
+  let tries=0;
+  while(tries++<1000) {
+    const x=Math.floor(Math.random()*GRID);
+    const y=Math.floor(Math.random()*GRID);
+    if(!exclude.some(s=>s.x===x&&s.y===y)) return {x,y};
+  }
+  return {x:0,y:0};
+}
+
+function initGame() {
+  const cx = Math.floor(GRID/2);
+  const cy = Math.floor(GRID/2);
+  snake    = [{x:cx,y:cy},{x:cx,y:cy+1},{x:cx,y:cy+2}];
+  dir      = 'U';
+  nextDir  = 'U';
+  food     = randCell(snake);
+  bonusFood= null;
+  bonusTimer=0;
+  score    = 0;
+  speed    = BASE_SPEED;
+  particles.length = 0;
+  frame    = 0;
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('hScore').textContent = score;
+  document.getElementById('hLen').textContent   = snake.length;
+  document.getElementById('hBest').textContent  = getBest();
+  document.getElementById('speedVal').textContent = Math.round((BASE_SPEED - speed)/SPEED_STEP + 1);
+}
+
+// ══════════════════════════════════════════
+//  DRAW FRAME
+// ══════════════════════════════════════════
+function drawFrame() {
+  drawGrid();
+
+  // Food glow
+  const ft = Date.now()/1000;
+  const fg = 0.5 + 0.5*Math.sin(ft*3);
+  ctx.fillStyle=`rgba(245,101,101,${0.1+fg*0.12})`;
+  ctx.beginPath();
+  ctx.arc(food.x*SCALE+SCALE/2, food.y*SCALE+SCALE/2, SCALE*0.75, 0, Math.PI*2);
+  ctx.fill();
+  drawSpr(FOOD_SPR, FOOD_PAL, food.x, food.y);
+
+  // Bonus food
+  if(bonusFood) {
+    const bg = 0.5 + 0.5*Math.sin(ft*5);
+    ctx.fillStyle=`rgba(246,201,14,${0.1+bg*0.15})`;
+    ctx.beginPath();
+    ctx.arc(bonusFood.x*SCALE+SCALE/2, bonusFood.y*SCALE+SCALE/2, SCALE*0.75, 0, Math.PI*2);
+    ctx.fill();
+    drawSpr(BONUS_SPR, BONUS_PAL, bonusFood.x, bonusFood.y);
+    // Timer bar
+    const bw = Math.max(0, bonusTimer/200) * SCALE;
+    ctx.fillStyle='rgba(246,201,14,0.15)';
+    ctx.fillRect(bonusFood.x*SCALE, bonusFood.y*SCALE+SCALE-3, SCALE, 3);
+    ctx.fillStyle='#f6c90e';
+    ctx.fillRect(bonusFood.x*SCALE, bonusFood.y*SCALE+SCALE-3, Math.round(bw), 3);
+  }
+
+  // Snake — draw from tail to head
+  const len = snake.length;
+  for(let i=len-1; i>=0; i--) {
+    const seg = snake[i];
+    const isHead = i===0;
+    const isTail = i===len-1;
+
+    if(isHead) {
+      drawSpr(HEAD_SPR, HEAD_PAL, seg.x, seg.y, dirToAngle(dir));
+    } else if(isTail) {
+      // Tail points toward the segment before it
+      const prev = snake[i-1];
+      const td = segDir(seg, prev);
+      drawSpr(TAIL_SPR, TAIL_PAL, seg.x, seg.y, dirToAngle(td));
+    } else {
+      drawSpr(i%2===0 ? BODY_SPR : BODY_SPR2,
+              i%2===0 ? BODY_PAL : BODY_PAL2, seg.x, seg.y);
+    }
+  }
+
+  updateParticles();
+}
+
+function segDir(from, to) {
+  if(to.x > from.x) return 'R';
+  if(to.x < from.x) return 'L';
+  if(to.y < from.y) return 'U';
+  return 'D';
+}
+
+function drawStatic() {
+  drawGrid();
+  // Draw a demo snake in the middle
+  const cx=Math.floor(GRID/2), cy=Math.floor(GRID/2);
+  drawSpr(HEAD_SPR, HEAD_PAL, cx, cy, 0);
+  drawSpr(BODY_SPR,  BODY_PAL,  cx, cy+1);
+  drawSpr(BODY_SPR2, BODY_PAL2, cx, cy+2);
+  drawSpr(TAIL_SPR,  TAIL_PAL,  cx, cy+3, Math.PI);
+  drawSpr(FOOD_SPR, FOOD_PAL, cx+3, cy+1);
+}
+
+// ══════════════════════════════════════════
+//  TICK — moves snake
+// ══════════════════════════════════════════
+function tick() {
+  dir = nextDir;
+  const head = snake[0];
+  const moves = { U:{x:0,y:-1}, D:{x:0,y:1}, L:{x:-1,y:0}, R:{x:1,y:0} };
+  const mv = moves[dir];
+  const nx = head.x + mv.x;
+  const ny = head.y + mv.y;
+
+  // Wall collision
+  if(nx<0||nx>=GRID||ny<0||ny>=GRID) { die(); return; }
+
+  // Self collision (skip last segment since it will move)
+  if(snake.slice(0,-1).some(s=>s.x===nx&&s.y===ny)) { die(); return; }
+
+  snake.unshift({x:nx, y:ny});
+
+  // Eat food
+  if(nx===food.x && ny===food.y) {
+    score += SCORE_PER_FOOD;
+    speed  = Math.max(MIN_SPEED, speed - SPEED_STEP);
+    spawnParticles(food.x, food.y);
+    food = randCell(snake);
+    // Spawn bonus every 5 foods
+    if(snake.length % 5 === 0 && !bonusFood) {
+      bonusFood  = randCell(snake);
+      bonusTimer = 200;
+    }
+    updateHUD();
+    restartLoop();
+  } else {
+    snake.pop();
+  }
+
+  // Eat bonus
+  if(bonusFood && nx===bonusFood.x && ny===bonusFood.y) {
+    score += SCORE_PER_FOOD * 3;
+    spawnParticles(bonusFood.x, bonusFood.y);
+    spawnParticles(bonusFood.x, bonusFood.y);
+    bonusFood = null;
+    updateHUD();
+  }
+
+  // Bonus timer
+  if(bonusFood) {
+    bonusTimer--;
+    if(bonusTimer<=0) bonusFood=null;
+  }
+
+  frame++;
+  drawFrame();
+}
+
+function die() {
+  running=false;
+  clearInterval(gameLoop);
+  spawnParticles(snake[0].x, snake[0].y);
+  spawnParticles(snake[0].x, snake[0].y);
+  drawFrame(); // show particles
+  setTimeout(showGameOver, 600);
+}
+
+function restartLoop() {
+  clearInterval(gameLoop);
+  gameLoop = setInterval(tick, speed);
+}
+
+// ══════════════════════════════════════════
+//  RENDER LOOP (particles + food bob between ticks)
+// ══════════════════════════════════════════
+let rafId;
+function renderLoop() {
+  if(running) drawFrame();
+  rafId = requestAnimationFrame(renderLoop);
+}
+
+// ══════════════════════════════════════════
+//  HIGH SCORES
+// ══════════════════════════════════════════
+const HS_KEY = '_wbk_snake_hs';
+function loadHS() { try{return JSON.parse(localStorage.getItem(HS_KEY))||[];}catch{return[];} }
+function saveHS(s) { let h=loadHS(); h.push(s); h.sort((a,b)=>b-a); h=h.slice(0,5); localStorage.setItem(HS_KEY,JSON.stringify(h)); return h; }
+function getBest() { const h=loadHS(); return h.length?h[0]:0; }
+
+const MEDALS=['🥇','🥈','🥉','',''];
+function renderHS(elId) {
+  const h=loadHS(), el=document.getElementById(elId);
+  if(!h.length) { el.innerHTML='<div class="hs-row" style="justify-content:center;color:#1e2e1e;font-size:0.55rem">no scores yet</div>'; return; }
+  el.innerHTML = h.map((s,i)=>`
+    <div class="hs-row ${['r1','r2','r3','',''][i]}">
+      <span class="hs-rank">#${i+1}</span>
+      <span class="hs-medal">${MEDALS[i]}</span>
+      <span class="hs-score">${s}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+//  GAME MANAGEMENT
+// ══════════════════════════════════════════
+function startGame() {
+  document.getElementById('scrStart').classList.add('hidden');
+  document.getElementById('scrOver').classList.add('hidden');
+  document.getElementById('speedTag').classList.add('show');
+  initGame();
+  running = true;
+  restartLoop();
+  cancelAnimationFrame(rafId);
+  renderLoop();
+}
+
+function showGameOver() {
+  running = false;
+  const prev = getBest();
+  const hs   = saveHS(score);
+  const isNew = score > 0 && score >= hs[0] && score > prev;
+
+  document.getElementById('goSub').textContent =
+    score === 0 ? 'you scored nothing...' :
+    score < 50  ? 'keep practicing' :
+    score < 150 ? 'not bad' : 'impressive';
+
+  document.getElementById('newBest').classList.toggle('show', isNew);
+  renderHS('hsOver');
+  document.getElementById('scrOver').classList.remove('hidden');
+  document.getElementById('speedTag').classList.remove('show');
+  updateHUD();
+}
+
+// ══════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════
+const OPPOSITE = {U:'D',D:'U',L:'R',R:'L'};
+function setDir(d) {
+  if(d !== OPPOSITE[dir]) nextDir = d;
+}
+
+document.addEventListener('keydown', e => {
+  switch(e.code) {
+    case 'ArrowUp':    case 'KeyW': e.preventDefault(); setDir('U'); break;
+    case 'ArrowDown':  case 'KeyS': e.preventDefault(); setDir('D'); break;
+    case 'ArrowLeft':  case 'KeyA': e.preventDefault(); setDir('L'); break;
+    case 'ArrowRight': case 'KeyD': e.preventDefault(); setDir('R'); break;
+    case 'Escape': if(running){ running=false; clearInterval(gameLoop); showGameOver(); } break;
+  }
+});
+
+// Touch swipe on canvas
+let touchStartX=0, touchStartY=0;
+canvas.addEventListener('touchstart', e=>{ touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY; },{passive:true});
+canvas.addEventListener('touchend', e=>{
+  const dx=e.changedTouches[0].clientX-touchStartX;
+  const dy=e.changedTouches[0].clientY-touchStartY;
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'R':'L');
+  else setDir(dy>0?'D':'U');
+},{passive:true});
+
+// D-pad
+const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||window.innerWidth<800;
+if(isMobile) document.getElementById('dpad').classList.add('show');
+
+function dpBind(id,d){
+  const el=document.getElementById(id);
+  ['touchstart','mousedown'].forEach(ev=>el.addEventListener(ev,e=>{e.preventDefault();setDir(d);el.classList.add('pressed');setTimeout(()=>el.classList.remove('pressed'),120);},{passive:false}));
+}
+dpBind('dpU','U'); dpBind('dpD','D'); dpBind('dpL','L'); dpBind('dpR','R');
+
+// ══════════════════════════════════════════
+//  BUTTONS
+// ══════════════════════════════════════════
+document.getElementById('btnStart').addEventListener('click', startGame);
+document.getElementById('btnRestart').addEventListener('click', startGame);
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+renderHS('hsStart');
+document.getElementById('hBest').textContent = getBest();
+drawStatic();
+</script>
+</body>
+</html>
